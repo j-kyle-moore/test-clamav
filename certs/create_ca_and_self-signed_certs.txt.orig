@@ -1,0 +1,29 @@
+First, create answer files for CA and hosts
+Then:
+Create CA:
+openssl genrsa -out km_test_ca.key 4096
+openssl req -new -x509 -key km_test_ca.key -days 3650 -out km_test_ca.crt -config <( cat openssl_kmtest_ca_answer_file.txt )
+openssl x509 -noout -text -in km_test_ca.crt 
+
+Create Host Cert Request:
+openssl genrsa -out rke2.key 4096
+openssl req -new -key rke2.key -out rke2.csr -config <( cat openssl_rke2_answer_file.txt )
+
+Verify the CSR:
+openssl req -in rke2.csr -noout -text
+openssl req -in rke2.csr -noout -text | grep DNS
+
+Sign the CSR:
+openssl x509 -req -in rke2.csr -CA ../kmtest_ca/km_test_ca.crt -CAkey ../kmtest_ca/km_test_ca.key -CAcreateserial -out rke2.crt -days 3650 -extensions 'req_ext' -extfile <( cat openssl_rke2_answer_file.txt )
+
+Verify the certificate:
+openssl x509 -noout -text -in rke2.crt 
+openssl x509 -noout -text -in rke2.crt | grep DNS
+
+Create the certificate bundle:
+cat rke2.crt ../kmtest_ca/km_test_ca.crt > rke2_ca_bundle.crt
+
+Verify the certificate bundle:
+openssl verify -CAfile ../kmtest_ca/km_test_ca.crt rke2_ca_bundle.crt 
+
+

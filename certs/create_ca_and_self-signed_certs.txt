@@ -1,0 +1,29 @@
+First, create answer files for CA and hosts
+Then:
+Create CA:
+openssl genrsa -out km_test_ca.key 4096
+openssl req -new -x509 -key km_test_ca.key -days 3650 -out km_test_ca.crt -config <( cat openssl_kmtest_ca_answer_file.txt )
+openssl x509 -noout -text -in km_test_ca.crt 
+
+Create Host Cert Request:
+openssl genrsa -out /etc/pki/tls/certs/rke2agent1.key 4096
+openssl req -new -key /etc/pki/tls/certs/rke2agent1.key -out /etc/pki/tls/certs/rke2agent1.csr -config <( cat /etc/pki/tls/certs/rke2agent1/openssl_rke2agent1_answer_file.txt )
+
+Verify the CSR:
+openssl req -in /etc/pki/tls/certs/rke2agent1.csr -noout -text
+openssl req -in /etc/pki/tls/certs/rke2agent1.csr -noout -text | grep DNS
+
+Sign the CSR:
+openssl x509 -req -in /etc/pki/tls/certs/rke2agent1.csr -CA /etc/pki/tls/certs/kmtest_ca/km_test_ca.crt -CAkey /etc/pki/tls/certs/kmtest_ca/km_test_ca.key -CAcreateserial -out /etc/pki/tls/certs/rke2agent1.crt -days 3650 -extensions 'req_ext' -extfile <( cat /etc/pki/tls/certs/rke2agent1/openssl_rke2agent1_answer_file.txt )
+
+Verify the certificate:
+openssl x509 -noout -text -in /etc/pki/tls/certs/rke2agent1.crt 
+openssl x509 -noout -text -in /etc/pki/tls/certs/rke2agent1.crt | grep DNS
+
+Create the certificate bundle:
+cat /etc/pki/tls/certs/rke2agent1.crt /etc/pki/tls/certs/kmtest_ca/km_test_ca.crt > /etc/pki/tls/certs/rke2agent1.ca_bundle.crt
+
+Verify the certificate bundle:
+openssl verify -CAfile /etc/pki/tls/certs/kmtest_ca/km_test_ca.crt /etc/pki/tls/certs/rke2agent1.ca_bundle.crt 
+
+

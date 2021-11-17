@@ -1,0 +1,23 @@
+[req]
+default_bits = 4096
+prompt = no
+default_md = sha256
+x509_extensions = req_ext
+req_extensions = req_ext
+distinguished_name = dn
+
+[ dn ]
+C=US
+ST=VA
+L=Suffolk
+O=JS
+OU=J7
+emailAddress=admin@km.test
+CN = harbor
+
+[ req_ext ]
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = harbor.rke2-app.km.test
+DNS.2 = harbor.rke2-app.km.test

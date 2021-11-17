@@ -1,0 +1,102 @@
+
+pipeline {
+  agent {
+    kubernetes {
+      yaml '''
+
+kind: Pod
+metadata:
+  name: kaniko
+  namespace: jenkins
+spec:
+  containers:
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:debug
+    imagePullPolicy: Always
+    command:
+    - cat
+    tty: true
+    volumeMounts:
+      - name: regcred-auths
+        mountPath: /kaniko/.docker
+      - name: km-test-cabundle
+        mountPath: /kaniko/ssl/km-test-certs
+      - name: dod-root-ca5-cabundle
+        mountPath: /kaniko/ssl/dod-root-certs
+
+  volumes:
+    - name: regcred-auths
+      secret:
+        secretName: regcred-auths
+    - name: star-rke2-app
+      configMap:
+        name: star-rke2-app
+        namespace: jenkins
+    - name: km-test-cabundle
+      configMap:
+        name: km-test-cabundle
+        namespace: jenkins
+    - name: dod-root-ca5-cabundle
+      configMap:
+        name: dod-root-ca5-cabundle
+        namespace: jenkins
+
+'''
+    }
+
+  }
+
+  environment {
+    SCM_SOURCE = "Bitbucket"
+    SCM_REPO_NAME = "Ironbank_UBI8"
+    SCM_REPO_CREDS = "j7-repo1"
+    SCM_REPO_URL = "https://repo1.dso.mil/dsop/redhat/ubi/ubi8.git"
+    SCM_REPO_BRANCH = "development"
+
+    HARBOR_SERVER = "harbor.rke2-app.km.test"
+    HARBOR_REPO1 = "eadquarantine"
+    HARBOR_REPO2 = "eaddev"
+    IMAGE_NAME = "ubi8"
+    IMAGE_TAG = "latest"
+
+    ANCHORE_RESULTS_FILE = "anchore_ubi8_results"
+
+    REGISTRY_CERT_LOC = "/kaniko/ssl/km-test-certs/km_test_ca.crt"
+    LOG_LEVEL = "debug"
+  }
+
+
+  stages {
+    stage('SCM Checkout') {
+      steps {
+        echo "SCM Checkout from ${env.SCM_SOURCE} ${env.SCM_REPO_NAME}"
+        git(credentialsId: "${env.SCM_REPO_CREDS}", url: "${env.SCM_REPO_URL}", branch: "${env.SCM_REPO_BRANCH}")
+      }
+    }
+
+    // stage('Scan with Anchore') {
+    //         steps {
+    //             sh 'echo "$HARBOR_SERVER/$HARBOR_REPO1/$IMAGE_NAME" ${WORKSPACE}/Dockerfile > anchore_images'
+    //             anchore 'anchore_images'
+    //         }
+    //     }
+
+    stage('Build and push to eadquarantine with Kaniko') {
+      steps {
+        echo 'Build and Push with Kaniko'
+        container(name: 'kaniko') {
+          sh '''
+          /kaniko/executor --dockerfile `pwd`/Dockerfile  --context `pwd` --destination=${HARBOR_SERVER}/${HARBOR_REPO1}/${IMAGE_NAME}:${IMAGE_TAG} --destination=${HARBOR_SERVER}/${HARBOR_REPO1}/${IMAGE_NAME}:$BUILD_NUMBER --verbosity=${LOG_LEVEL} --registry-certificate ${HARBOR_SERVER}=${REGISTRY_CERT_LOC}
+          '''
+            }
+          }
+        }
+
+    stage('Scan with Anchore') {
+            steps {
+                sh 'echo "$HARBOR_SERVER/$HARBOR_REPO1/$IMAGE_NAME" ${WORKSPACE}/Dockerfile > anchore_images'
+                anchore 'anchore_images'
+            }
+        }
+      }
+  }
