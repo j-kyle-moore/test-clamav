@@ -1,50 +1,10 @@
 
 pipeline {
   agent {
-    kubernetes {
-      yaml '''
-
-kind: Pod
-metadata:
-  name: kaniko
-  namespace: jenkins
-spec:
-  containers:
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:debug
-    imagePullPolicy: Always
-    command:
-    - cat
-    tty: true
-    volumeMounts:
-      - name: regcred-auths
-        mountPath: /kaniko/.docker
-      - name: km-test-cabundle
-        mountPath: /kaniko/ssl/km-test-certs
-      - name: dod-root-ca5-cabundle
-        mountPath: /kaniko/ssl/dod-root-certs
-
-  volumes:
-    - name: regcred-auths
-      secret:
-        secretName: regcred-auths
-    - name: star-rke2-app
-      configMap:
-        name: star-rke2-app
-        namespace: jenkins
-    - name: km-test-cabundle
-      configMap:
-        name: km-test-cabundle
-        namespace: jenkins
-    - name: dod-root-ca5-cabundle
-      configMap:
-        name: dod-root-ca5-cabundle
-        namespace: jenkins
-
-'''
-    }
-
-  }
+      node {
+          label 'kaniko'
+            }
+        } 
 
   environment {
     SCM_SOURCE = "Bitbucket"
